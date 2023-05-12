@@ -1,59 +1,116 @@
 <script>
-  import { afterUpdate } from 'svelte';
+  import { flip } from 'svelte/animate';
 
-  afterUpdate(() => {
-    document.querySelector('.js-todo-input').focus();
-  });
+  let applicants = [
+    {
+      "Heading": "Players",
+      "names": ["DHONI", "KOHLI", "ROHIT", "JADEJA", "PANDHYA"]
+    },
+    {
+      "Heading": "Sold",
+      "names": ["CONWAY", "DUPLESIS"]
+    },
+    {
+      "Heading": "Unsold",
+      "names": ["WARNER"]
+    }
+  ];
 
-  let todoItems = [];
-  let newTodo = '';
+  let hoveringOverApplicant;
 
-  function addTodo() {
-    newTodo = newTodo.trim();
-    if (!newTodo) return;
-
-    const todo = {
-      text: newTodo,
-      checked: false,
-      id: Date.now(),
-    };
-
-    todoItems = [...todoItems, todo];
-    newTodo = '';
+  function dragStart(event, applicantIndex, nameIndex) {
+    const data = { applicantIndex, nameIndex };
+    event.dataTransfer.setData('text/plain', JSON.stringify(data));
   }
 
-  function toggleDone(id) {
-    const index = todoItems.findIndex(item => item.id === Number(id));
-    todoItems[index].checked = !todoItems[index].checked;
+  function drop(event, applicantIndex) {
+    event.preventDefault();
+    const json = event.dataTransfer.getData("text/plain");
+    const data = JSON.parse(json);
+
+    const [name] = applicants[data.applicantIndex].names.splice(data.nameIndex, 1);
+
+    applicants[applicantIndex].names.push(name);
+    applicants = [...applicants]; // Make a copy to trigger reactivity
+
+    hoveringOverApplicant = null;
   }
 
-  function deleteTodo(id) {
-    todoItems = todoItems.filter(item => item.id !== Number(id));
+  function editName(applicantIndex, nameIndex) {
+    const newName = prompt("Enter a new name:");
+    if (newName) {
+      applicants[applicantIndex].names[nameIndex] = newName;
+      applicants = [...applicants]; // Make a copy to trigger reactivity
+    }
+  }
+
+  function deleteName(applicantIndex, nameIndex) {
+    applicants[applicantIndex].names.splice(nameIndex, 1);
+    applicants = [...applicants]; // Make a copy to trigger reactivity
   }
 </script>
 
-<main>
-  <div class="container">
-    <h1 class="app-title">todos</h1>
-    <ul class="todo-list">
-      {#each todoItems as todo (todo.id)}
-        <li class="todo-item {todo.checked ? 'done' : ''}">
-          <input id={todo.id} type="checkbox" />
-          <label for={todo.id} class="tick" on:click={() => toggleDone(todo.id)}></label>
-          <span>{todo.text}</span>
-          <button class="delete-todo" on:click={() => deleteTodo(todo.id)}>
-            <svg><use href="#delete-icon"></use></svg>
-          </button>
-        </li>
-      {/each}
-    </ul>
-    <div class="empty-state">
-      <svg class="checklist-icon"><use href="#checklist-icon"></use></svg>
-      <h2 class="empty-state__title">Add your first todo</h2>
-      <p class="empty-state__description">What do you want to get done today?</p>
+<h1 style="color:Maroon;">IPL Auction</h1>
+
+<div class="applicants-container">
+  {#each applicants as applicant, applicantIndex (applicant)}
+    <div class="applicant" animate:flip>
+      <b>{applicant.Heading}</b>
+      <ul
+        class:hovering={hoveringOverApplicant === applicant.Heading}
+        on:dragenter={() => hoveringOverApplicant = applicant.Heading}
+        on:dragleave={() => hoveringOverApplicant = null}
+        on:drop={event => drop(event, applicantIndex)}
+        ondragover="return false"
+      >
+        {#each applicant.names as name, nameIndex (name)}
+          <li
+            draggable={true}
+            on:dragstart={event => dragStart(event, applicantIndex, nameIndex)}
+          >
+            {name}
+            <button on:click={() => editName(applicantIndex, nameIndex)}>Edit</button>
+            <button on:click={() => deleteName(applicantIndex, nameIndex)}>Delete</button>
+          </li>
+        {/each}
+      </ul>
     </div>
-    <form on:submit|preventDefault={addTodo}>
-      <input class="js-todo-input" type="text" aria-label="Enter a new todo item" placeholder="E.g. Build a web app" bind:value={newTodo}>
-    </form>
-  </div>
-</main>
+  {/each}
+</div>
+
+<style>
+	.applicants-container {
+	  display: grid;
+	  grid-template-columns: repeat(3, 1fr);
+	  grid-gap: 20px;
+	}
+  
+	.applicant {
+	  background-color: whitesmoke;
+	  padding: 10px;
+	  border-radius: 5px;
+	}
+  
+	.applicant ul {
+	  list-style: none;
+	  margin: 0;
+	  padding: 0;
+	}
+  
+	.applicant li {
+	  margin-bottom: 10px;
+	}
+  
+	.applicant li:hover {
+	  cursor: move;
+	  background-color: yellowgreen;
+	}
+  
+	.applicant li button {
+	  margin-left: 10px;
+	}
+  
+	.applicant li button:hover {
+	  background-color: brown;
+	}
+  </style>
